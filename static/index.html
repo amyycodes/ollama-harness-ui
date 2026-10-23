@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ollama Harness UI</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #7dd3fc;
+        --accent-2: #34d399;
+        --border: #2b3445;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #111827 100%);
+        color: var(--text);
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 60px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      h1 { margin: 0; font-size: 2rem; }
+      .badge {
+        background: rgba(125, 211, 252, 0.12);
+        color: var(--accent);
+        border: 1px solid rgba(125, 211, 252, 0.3);
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 20px;
+      }
+      .panel {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      }
+      textarea, input, button, select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.8);
+        color: var(--text);
+        padding: 12px 14px;
+        font: inherit;
+      }
+      textarea {
+        min-height: 180px;
+        resize: vertical;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .row > * { flex: 1; }
+      button {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #03111f;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.7;
+        cursor: wait;
+      }
+      .response-box {
+        min-height: 260px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .muted { color: var(--muted); margin-top: 10px; font-size: 0.9rem; }
+      .hint { color: var(--muted); margin-top: 12px; }
+      @media (max-width: 800px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Ollama Harness UI</h1>
+        <div class="badge">small-model agent harness</div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <label for="task">Task</label>
+          <textarea id="task" placeholder="Inspect this repo and summarize the main pieces.">Inspect this repo and summarize the main pieces of the agent harness.</textarea>
+
+          <div class="row">
+            <div>
+              <label for="model">Model</label>
+              <select id="model">
+                <option value="llama3.2:3b">llama3.2:3b</option>
+                <option value="qwen2.5:3b">qwen2.5:3b</option>
+                <option value="mistral:7b">mistral:7b</option>
+              </select>
+            </div>
+            <div>
+              <label for="workspace">Workspace</label>
+              <input id="workspace" value="." />
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="runBtn">Run agent</button>
+          </div>
+
+          <div class="muted">Fast system prompt: “You are a fast local coding agent...”</div>
+          <div class="hint">This UI is intentionally small and tool-limited so smaller models stay fast and easier to control.</div>
+        </div>
+
+        <div class="panel">
+          <h3>Agent output</h3>
+          <div id="output" class="response-box">Waiting for a task…</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const taskEl = document.getElementById('task');
+      const modelEl = document.getElementById('model');
+      const workspaceEl = document.getElementById('workspace');
+      const outputEl = document.getElementById('output');
+      const runBtn = document.getElementById('runBtn');
+
+      runBtn.addEventListener('click', async () => {
+        const task = taskEl.value.trim();
+        const model = modelEl.value;
+        const workspace = workspaceEl.value || '.';
+
+        if (!task) {
+          outputEl.textContent = 'Please enter a task.';
+          return;
+        }
+
+        runBtn.disabled = true;
+        outputEl.textContent = 'Thinking...';
+
+        try {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task, model, workspace }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Request failed');
+          outputEl.textContent = data.answer || 'No answer returned.';
+        } catch (error) {
+          outputEl.textContent = 'Error: ' + (error.message || String(error));
+        } finally {
+          runBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
